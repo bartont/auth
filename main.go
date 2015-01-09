@@ -34,8 +34,8 @@ func init() {
 
 func main() {
 	r := mux.NewRouter()
-	r.HandleFunc("/validate", ValidateHandler).Methods("PUT")
-	r.HandleFunc("/token", TokenHandler).Methods("POST")
+	r.HandleFunc("/validate", validateHandler).Methods("PUT")
+	r.HandleFunc("/token", tokenHandler).Methods("POST")
 	http.Handle("/", r)
 
 	log.Println("Listening on port 8000. Go to http://localhost:8000/")

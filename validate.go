@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-func ValidateHandler(w http.ResponseWriter, r *http.Request) {
+func validateHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	token, err := jwt.ParseFromRequest(r, func(t *jwt.Token) (interface{}, error) {

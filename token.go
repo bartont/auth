@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func TokenHandler(w http.ResponseWriter, r *http.Request) {
+func tokenHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	token := jwt.New(jwt.GetSigningMethod("RS256")) // Create a Token that will be signed with RSA 256.
 
@@ -26,7 +26,7 @@ func TokenHandler(w http.ResponseWriter, r *http.Request) {
 	tokenString, err := token.SignedString(privateKey)
 
 	if err != nil {
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusUnauthorized)
 		fmt.Fprintf(w, err.Error())
 		log.Println("Unable to get token", err)
 		return
@@ -35,7 +35,7 @@ func TokenHandler(w http.ResponseWriter, r *http.Request) {
 	info["token"] = tokenString
 	session, _ := json.Marshal(info)
 	// tokenString Contains the actual token you should share with your client.
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 
 	log.Println(string(session))
 	fmt.Fprintf(w, string(session))

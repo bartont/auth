@@ -1,13 +1,14 @@
 package main
 
 import (
-	"io"
-	"net/http"
 	"errors"
 	"fmt"
-	"os"
+	"io"
 	"log"
-	"math/rand"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
 )
 
 func serveError(w http.ResponseWriter, err error) {
@@ -63,47 +64,40 @@ func notlsHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fullUrl, http.StatusMovedPermanently)
 }
 
-// http://stackoverflow.com/questions/13302020/rendering-css-in-a-go-web-application
-type JustFilesFilesystem struct {
-	fs http.FileSystem
-}
+type HandleTester func(
+	method string,
+	params string,
+) *httptest.ResponseRecorder
 
-func (fs JustFilesFilesystem) Open(name string) (http.File, error) {
-	f, err := fs.fs.Open(name)
-	if err != nil {
-		return nil, err
+func GenerateHandleTester(
+	t *testing.T,
+	handleFunc http.Handler,
+) HandleTester {
+
+	// Given a method type ("GET", "POST", etc) and
+	// parameters, serve the response against the handler
+	// and return the ResponseRecorder.
+
+	return func(
+		method string,
+		params string,
+	) *httptest.ResponseRecorder {
+
+		req, err := http.NewRequest(
+			method,
+			"",
+			strings.NewReader(params),
+		)
+		if err != nil {
+			t.Errorf("%v", err)
+		}
+		req.Header.Set(
+			"Content-Type",
+			"application/json",
+		)
+		req.Body.Close()
+		w := httptest.NewRecorder()
+		handleFunc.ServeHTTP(w, req)
+		return w
 	}
-	return neuteredReaddirFile{f}, nil
-}
-
-type neuteredReaddirFile struct {
-	http.File
-}
-
-func (f neuteredReaddirFile) Readdir(count int) ([]os.FileInfo, error) {
-	return nil, nil
-}
-
-// or with crypto "func String" https://github.com/jmcvetta/randutil/blob/master/randutil.go
-func randSeq(n int) string {
-	letters := []rune("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-    b := make([]rune, n)
-    for i := range b {
-        b[i] = letters[rand.Intn(len(letters))]
-    }
-    return string(b)
-}
-
-func Extension(b []byte) string {
-	mime := http.DetectContentType(b)
-	exts := map[string]string{
-		"image/jpeg": "jpg",
-		"image/png": "png",
-		"image/gif": "gif",
-	}
-	ext, ok := exts[mime]
-	if !ok {
-		ext = ""
-	}
-	return "." + ext
 }

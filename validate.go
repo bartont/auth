@@ -10,6 +10,7 @@ import (
 
 func validateHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	fmt.Println(r)
 
 	token, err := jwt.ParseFromRequest(r, func(t *jwt.Token) (interface{}, error) {
 		return publicKey, nil

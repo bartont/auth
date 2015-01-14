@@ -17,6 +17,11 @@ var (
 	publicKey  []byte
 )
 
+type Registration struct {
+	Email    string
+	Password string
+}
+
 func init() {
 	pk, err := ioutil.ReadFile(os.Getenv("GOPATH") + "/demo.rsa")
 	if err != nil {
@@ -36,6 +41,7 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/validate", validateHandler).Methods("PUT")
 	r.HandleFunc("/token", tokenHandler).Methods("POST")
+	r.HandleFunc("/registration", registrationHandler).Methods("POST")
 	http.Handle("/", r)
 
 	log.Println("Listening on port 8000. Go to http://localhost:8000/")

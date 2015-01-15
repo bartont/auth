@@ -3,18 +3,75 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
 )
+
+func not_modified(w http.ResponseWriter, err error) {
+	log.Println(err)
+	w.WriteHeader(http.StatusNotModified)
+	w.Header().Set("Content-Type", "application/json")
+}
+
+func ok_request(w http.ResponseWriter, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, message)
+}
+
+func created_request(w http.ResponseWriter, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	fmt.Fprintf(w, message)
+}
+
+func access_denied(w http.ResponseWriter, err error, message string) {
+	if err == nil {
+		err = errors.New(message)
+	}
+	log.Println(err, message)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnauthorized)
+	fmt.Fprintf(w, message)
+}
+
+func bad_request(w http.ResponseWriter, err error) {
+	log.Println(err)
+	w.WriteHeader(http.StatusBadRequest)
+	w.Header().Set("Content-Type", "application/json")
+}
+
+func forbidden_request(w http.ResponseWriter, err error) {
+	log.Println(err)
+	w.WriteHeader(http.StatusForbidden)
+	w.Header().Set("Content-Type", "application/json")
+}
+
+func not_found(w http.ResponseWriter, err error) {
+	log.Println(err)
+	w.WriteHeader(http.StatusNotFound)
+	w.Header().Set("Content-Type", "application/json")
+}
+
+func gone(w http.ResponseWriter, err error) {
+	log.Println(err)
+	w.WriteHeader(http.StatusGone)
+	w.Header().Set("Content-Type", "application/json")
+}
+
+func invalid_request(w http.ResponseWriter, err error, message string) {
+	if err == nil {
+		err = errors.New(message)
+	}
+	log.Println(err, message)
+	http.Error(w, message, 422)
+	w.Header().Set("Content-Type", "application/json")
+}
 
 func serveError(w http.ResponseWriter, err error) {
 	log.Println(err)
 	w.WriteHeader(http.StatusInternalServerError)
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json")
 }
 
 func redirectHandler(path string) func(http.ResponseWriter, *http.Request) {
@@ -26,19 +83,6 @@ func redirectHandler(path string) func(http.ResponseWriter, *http.Request) {
 }
 
 func parseForm(r *http.Request) error {
-	// https://groups.google.com/forum/?fromgroups#!topic/golang-nuts/73bqDlejJCQ
-	// parseForm calls Request.ParseForm() excluding values from the URL query.
-	// It returns an error if the request body was already parsed or if it failed
-	// to parse.
-	//
-	// http://code.google.com/p/go/issues/detail?id=3630#c2
-	// If I'm not mistaken, this "exploit" requires controlling the form's action.  If an attacker can control that, they could also probably redirect the user to their own server and steal all of the information and then redirect them back to the original action with properly-formed (but compromised) POST data.  If you are concerned about this in your webapps, it is probably trivial to add a quick `if r.Method = "POST" { r.URL.RawQuery = "" }`, though I would personally recommend auditing where the form tags get their action (in my own apps, it's always hard-coded in the template).
-	// I think it's poor design to care where you get your form values.  I wouldn't mind if FormValues only got the data from the canonical source for the current method (GET -> query params, POST -> form body), but putting that in your code doesn't seem like the correct approach.  The PHP language (from my view) encourages people to care about the difference, but as soon as you do you make it harder to do simple things like unit test your code.  Often it is super easy to control form responses in query parameters for testing and they also are very good for creating links to pre-populate a form (akin to "mailto" links that provide the subject for you).  When you start caring where the data came from, the logic here becomes much more difficult.
-	// Assuming that an established, authenticated and secure connection's $_POST could be trusted bit me once.... Never again.
-	//
-	// https://groups.google.com/forum/?fromgroups#!topic/golang-nuts/ke_JP5IkofA
-	// In the ParseForm method the values in the url query are overwritten by any values submitted via post
-	// Nothing gets overwritten... Both values are added to req.Form. So with req.Form.Get you get the first value associated with the key - the one from your url query. The value from the post form is number two in the slice: req.Form["user"][1]
 	if r.Form != nil {
 		return errors.New("Request body was parsed already.")
 	}
@@ -49,55 +93,4 @@ func parseForm(r *http.Request) error {
 	}
 	r.URL.RawQuery = tmp
 	return nil
-}
-
-func serve404(w http.ResponseWriter) {
-	// https://gist.github.com/1075842
-	w.WriteHeader(http.StatusNotFound)
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	io.WriteString(w, "Nie ma takiej strony!")
-}
-
-func notlsHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("in notlsHandler")
-	fullUrl := "https://localhost" + r.RequestURI
-	http.Redirect(w, r, fullUrl, http.StatusMovedPermanently)
-}
-
-type HandleTester func(
-	method string,
-	params string,
-) *httptest.ResponseRecorder
-
-func GenerateHandleTester(
-	t *testing.T,
-	handleFunc http.Handler,
-) HandleTester {
-
-	// Given a method type ("GET", "POST", etc) and
-	// parameters, serve the response against the handler
-	// and return the ResponseRecorder.
-
-	return func(
-		method string,
-		params string,
-	) *httptest.ResponseRecorder {
-
-		req, err := http.NewRequest(
-			method,
-			"",
-			strings.NewReader(params),
-		)
-		if err != nil {
-			t.Errorf("%v", err)
-		}
-		req.Header.Set(
-			"Content-Type",
-			"application/json",
-		)
-		req.Body.Close()
-		w := httptest.NewRecorder()
-		handleFunc.ServeHTTP(w, req)
-		return w
-	}
 }

@@ -11,15 +11,13 @@ import (
 
 func registrationHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "missing request body")
+		invalid_request(w, nil, "missing request body")
 		return
 	}
 
 	session, err := mgo.Dial("localhost")
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "user not created, database error, %v", err)
+		invalid_request(w, err, "user not created, database error")
 		return
 	}
 	defer session.Close()
@@ -30,8 +28,7 @@ func registrationHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewDecoder(r.Body).Decode(&dat)
 
 	if dat["password"] == nil || dat["email"] == nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "missing email or password")
+		invalid_request(w, nil, "missing email or password")
 		return
 	}
 
@@ -42,8 +39,7 @@ func registrationHandler(w http.ResponseWriter, r *http.Request) {
 	hashedPassword, err := bcrypt.GenerateFromPassword(passwordBytes, 10)
 
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "user not created, unable to generate password, %v", err)
+		invalid_request(w, err, "user not created, unable to generate password hash")
 		return
 	}
 
@@ -59,8 +55,7 @@ func registrationHandler(w http.ResponseWriter, r *http.Request) {
 	info, err := c.UpsertId(reg.Email, upsertdata)
 
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "user not created, unable to upsert, %v, upsertId: %v", err, info)
+		invalid_request(w, err, fmt.Sprintf("user not created, unable to upsert, %v, upsertId: %v", err, info))
 		return
 	}
 
@@ -76,11 +71,15 @@ func registrationHandler(w http.ResponseWriter, r *http.Request) {
 	err = bcrypt.CompareHashAndPassword([]byte(result.Password), passwordBytes)
 	if err != nil {
 		// password is not a match
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "user not created, password not a match, %v", err)
+		access_denied(w, err, fmt.Sprintf("user not created, password not a match, %v", err))
+
 	} else {
-		w.WriteHeader(http.StatusCreated)
-		fmt.Fprintf(w, "user created")
+		session, err := GetNewToken(w)
+		if err != nil {
+			access_denied(w, err, "unable to generate token")
+		} else {
+			created_request(w, string(session))
+		}
 	}
 
 }

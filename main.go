@@ -22,14 +22,15 @@ type Registration struct {
 	Password string
 }
 
+// set up rsa keys for authentication tokens
 func init() {
-	pk, err := ioutil.ReadFile(os.Getenv("GOPATH") + "/demo.rsa")
+	pk, err := ioutil.ReadFile(os.Getenv("UTX_PRIVATE_KEY"))
 	if err != nil {
 		log.Fatal("Unable to read private key", err)
 	} else {
 		privateKey = pk
 	}
-	pbk, err := ioutil.ReadFile(os.Getenv("GOPATH") + "/demo.rsa.pub")
+	pbk, err := ioutil.ReadFile(os.Getenv("UTX_PUBLIC_KEY"))
 	if err != nil {
 		log.Fatal("Unable to read public key", err)
 	} else {
@@ -37,6 +38,7 @@ func init() {
 	}
 }
 
+// start the server
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/validate", validateHandler).Methods("PUT")

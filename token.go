@@ -7,12 +7,34 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"log"
 	"net/http"
 	"time"
 )
 
-func CheckCredentials(r *http.Request) bool {
+func GetNewToken(w http.ResponseWriter) (string, error) {
+	// Create a Token that will be signed with RSA 256.
+	token := jwt.New(jwt.GetSigningMethod("RS256"))
+	exp := time.Now().Unix() + (60 * 60) // 1 hour
+	etm := time.Unix(exp, 0)
+
+	claims := token.Claims
+	claims["exp"] = exp
+	claims["created"] = time.Now()
+	claims["expires"] = etm
+
+	// The claims object allows you to store information in the actual token.
+	tokenString, err := token.SignedString(privateKey)
+
+	if err != nil {
+		return "", err
+	}
+
+	claims["token"] = tokenString
+	session, err := json.Marshal(claims)
+	return string(session), err
+}
+
+func checkCredentials(r *http.Request) bool {
 	if r.Body == nil {
 		return false
 	}
@@ -56,35 +78,16 @@ func CheckCredentials(r *http.Request) bool {
 }
 
 func tokenHandler(w http.ResponseWriter, r *http.Request) {
-	if CheckCredentials(r) {
-		w.Header().Set("Content-Type", "application/json")
-		token := jwt.New(jwt.GetSigningMethod("RS256")) // Create a Token that will be signed with RSA 256.
-
-		exp := time.Now().Unix() + (60 * 60) // 1 hour
-		etm := time.Unix(exp, 0)
-
-		claims := token.Claims
-		claims["exp"] = exp
-		claims["created"] = time.Now()
-		claims["expires"] = etm
-
-		// The claims object allows you to store information in the actual token.
-		tokenString, err := token.SignedString(privateKey)
-
+	if checkCredentials(r) {
+		// tokenString Contains the actual token you should share with your client.
+		session, err := GetNewToken(w)
 		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			fmt.Fprintf(w, err.Error())
-			log.Println("Unable to get token", err)
-			return
+			access_denied(w, err, "unable to generate token")
+		} else {
+			created_request(w, string(session))
 		}
 
-		claims["token"] = tokenString
-		session, _ := json.Marshal(claims)
-		// tokenString Contains the actual token you should share with your client.
-		w.WriteHeader(http.StatusCreated)
-		fmt.Fprintf(w, string(session))
 	} else {
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "invalid username or password")
+		access_denied(w, nil, "invalid username or password")
 	}
 }

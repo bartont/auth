@@ -2,9 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	jwt "github.com/dgrijalva/jwt-go"
-	"log"
 	"net/http"
 )
 
@@ -16,21 +14,14 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized) // Default is unauthorized
-		log.Println(err)
-		fmt.Fprintf(w, err.Error())
+		access_denied(w, err, err.Error())
 	} else if token.Valid {
 		tokenInfo, err := json.Marshal(token.Claims)
 		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			log.Println(err)
-			fmt.Fprintf(w, "error parsing marshalling JSON")
+			access_denied(w, err, "error parsing marshalling JSON")
 		}
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, string(tokenInfo))
+		ok_request(w, string(tokenInfo))
 	} else {
-		w.WriteHeader(http.StatusUnauthorized)
-		log.Println(err)
-		fmt.Fprintf(w, "unable to validate token")
+		access_denied(w, err, "unable to validate token")
 	}
 }

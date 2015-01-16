@@ -26,9 +26,6 @@ func created_request(w http.ResponseWriter, message string) {
 }
 
 func access_denied(w http.ResponseWriter, err error, message string) {
-	if err == nil {
-		err = errors.New(message)
-	}
 	log.Println(err, message)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)

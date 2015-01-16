@@ -17,8 +17,8 @@ func TestToken(t *testing.T) {
 
 	jsonStr := []byte(`{"email":"foo@you.com", "password":"zaq12wsx"}`)
 	b := bytes.NewBuffer(jsonStr)
-	req, err := http.NewRequest("POST", "/token", b)
-	if err != nil {
+
+	if req, err := http.NewRequest("POST", "/token", b); err != nil {
 		t.Fatal("'POST /token' request failed!")
 	}
 
